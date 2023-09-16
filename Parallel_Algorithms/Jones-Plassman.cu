@@ -45,7 +45,7 @@ void readGraph(int &n, int &m, int &maxDegree, int** h_adj, int** h_adj_p){
         }
     }
 
-    //Genero il grafo in maniera automatica andando a definire tutti gli archi.
+    //Genero il grafo in maniera manuale andando a definire tutti gli archi.
     else{                                                              
         i = 0;
         while(i < m){
