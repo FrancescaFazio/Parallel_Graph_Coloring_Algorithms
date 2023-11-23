@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <iostream>
 #include "graph.h"
-#include "/content/drive/MyDrive/graphcoloring/utils/common.h"
+#include "..\utils\common.h"
 
 using namespace std;
 
@@ -11,15 +11,15 @@ using namespace std;
  */
 void Graph::memsetGPU(node_sz nn, string memType) {
 	if (!memType.compare("nodes")) {
-		CHECK(cudaMallocManaged(&str, sizeof(GraphStruct)));
-		CHECK(cudaMallocManaged(&(str->cumDegs), (nn+1)*sizeof(node)));
+		gpuErrchk(cudaMallocManaged(&str, sizeof(GraphStruct)));
+		gpuErrchk(cudaMallocManaged(&(str->cumDegs), (nn+1)*sizeof(node)));
 	}
 	else if (!memType.compare("edges")) {
-		CHECK(cudaMallocManaged(&(str->neighs), str->edgeSize*sizeof(node)));
+		gpuErrchk(cudaMallocManaged(&(str->neighs), str->edgeSize*sizeof(node)));
 	} 
 	else if (!memType.compare("weights")){
-		CHECK(cudaMallocManaged(&(str->weights), (nn)*sizeof(int)));
-		CHECK(cudaMemset(str->weights, -1, nn * sizeof(int)));
+		gpuErrchk(cudaMallocManaged(&(str->weights), (nn)*sizeof(int)));
+		gpuErrchk(cudaMemset(str->weights, -1, nn * sizeof(int)));
 	}
 }
 

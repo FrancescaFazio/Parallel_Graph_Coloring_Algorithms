@@ -1,0 +1,3 @@
+nvcc -dc -I . .\Parallel_Algorithms\tester.cu .\Parallel_Algorithms\MIS\MISColorer.cu .\graph\graph_d.cu .\graph\graph.cpp
+nvcc  tester.obj MISColorer.obj graph.obj graph_d.obj -o tester
+.\tester.exe

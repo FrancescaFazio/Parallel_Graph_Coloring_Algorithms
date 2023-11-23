@@ -2,6 +2,8 @@
 #include <iostream>
 #include <curand_kernel.h>
 #include <thrust/count.h>
+#include <thrust/sort.h>
+#include <thrust/execution_policy.h>
 #include <stdlib.h>
 #include <curand.h>
 #include "graph\graph.h"
@@ -10,6 +12,7 @@
 #include "utils\common.h"
 
 #define THREADxBLOCK 128
+#define GRAPH_DIM 1000
 
 using namespace std;
 
@@ -18,7 +21,7 @@ __device__ int random;
 __global__ void setDegrees(GraphStruct *str, uint k, uint weight){
     uint n = str->nodeSize;
 
-    for (int idx = threadIdx.x + blockIdx.x * blockDim.x; idx < n; idx += blockDim.x*gridDim.x) {
+    for (int idx = threadIdx.x+blockIdx.x*blockDim.x; idx < n; idx += blockDim.x*gridDim.x){
         uint offset = str->cumDegs[idx];
         uint originalDeg = str->cumDegs[idx + 1] - str->cumDegs[idx];
         uint inducedDeg = 0;
@@ -45,7 +48,8 @@ void initDegrees(GraphStruct *str){
     while(nodesLeft > 0){
         while(true){
             setDegrees <<< blocks, threads >>> (str, degree, weigth);
-            cudaDeviceSynchronize();
+            gpuErrchk(cudaPeekAtLastError())
+		    gpuErrchk(cudaDeviceSynchronize());
 
             int visitedNodes = (int)thrust::count(str->weights, str->weights+n, weigth);
 
@@ -62,14 +66,11 @@ __global__ void colorer (Coloring* col, GraphStruct *str) {
 
 	for (int i = threadIdx.x+blockIdx.x*blockDim.x; i < n; i += blockDim.x*gridDim.x) {
 		bool flag = true; // vera sse il nodo ha peso locale massimo
-
+        
 		// ignora i nodi già colorati
 		if ((col->coloring[i] != -1)) continue;
 
 		int iWeight = str->weights[i];
-        bool* forbidden;
-        cudaMalloc((void**) &forbidden, n * sizeof(bool));
-        memset(forbidden, false, n);
 
 		// guarda i pesi del vicinato
 		uint offset = str->cumDegs[i];
@@ -79,47 +80,34 @@ __global__ void colorer (Coloring* col, GraphStruct *str) {
 			uint neighID = str->neighs[offset + j];
 			// ignora i vicini già colorati (e te stesso)
 			int jColor = col->coloring[neighID];
-            if (jColor != -1 || i == neighID) {
-                forbidden[jColor] = true;
+
+            if(jColor != -1){
+                col->usedColors[n * i + jColor] = true;
                 continue;
             }
+            if(i == neighID) continue;
 			int jWeight = str->weights[neighID];
+            
 			if (iWeight < jWeight) flag = false;
-            else if (iWeight == jWeight)
-            {
+            else if (iWeight == jWeight){
                 int iRandom = (i + random) % n;
                 int jRandom = (neighID + random) % n;
                 if(iRandom < jRandom) flag = false;
             }
 		}
-
+           
 		// colora solo se sei il nodo di peso massimo
 		if (flag){
-            for(int c = 0; c < n; c++){
-                if(!forbidden[c]) { 
-                    col->coloring[i] = c;
-                    break;
-                }
-            }
+            // Cerca il primo colore libero per questo nodo
+            int color = 0;
+            while (col->usedColors[n * i + color]) color++;
+            
+            // Assegna il primo colore libero al nodo corrente
+            col->coloring[i] = color;
         }
-        free(forbidden);
-	}
-}
-
-void h_swap(int* array, int idx_a, int idx_b){
-    int tmp = array[idx_a];
-    array[idx_a] = array[idx_b];
-    array[idx_b] = tmp;
-
-    return;
-}
-
-void FYshuffle(int * weights, uint n){
-    for(int i = 0; i < n; i++){
-        int swapIdx = (rand() % (n - i)) + i;
-        h_swap(weights, i, swapIdx);
     }
 }
+
 
 Coloring* graphColoring(GraphStruct *str) {
 	int n = str->nodeSize;
@@ -128,26 +116,30 @@ Coloring* graphColoring(GraphStruct *str) {
     cudaMemcpyToSymbol(random, &r, sizeof(int));
 
 	Coloring* col;
-	CHECK(cudaMallocManaged(&col, sizeof(Coloring)));
-	col->uncoloredNodes = true;
+	gpuErrchk(cudaMallocManaged(&col, sizeof(Coloring)));
 
-    CHECK(cudaMallocManaged(&(col->coloring), n * sizeof(int)));
-	memset(col->coloring, -1 ,n * sizeof(int));
+    gpuErrchk(cudaMallocManaged(&(col->coloring), n * sizeof(int)));
+	thrust::fill(col->coloring, col->coloring + n, -1);
 	// allocate space on the GPU for the random states
+
+    gpuErrchk(cudaMallocManaged(&(col->usedColors), n * n * sizeof(bool)));
+    thrust::fill(col->usedColors, col->usedColors + (n * n), false);
 
 	dim3 threads ( THREADxBLOCK);
 	dim3 blocks ((str->nodeSize + threads.x - 1) / threads.x, 1, 1 );
 
     initDegrees(str);
+    gpuErrchk(cudaPeekAtLastError())
+    gpuErrchk(cudaDeviceSynchronize());
 
-	while(true){
+	for(int c = 0; c < n; c++){
 		colorer<<<blocks, threads>>>(col, str);
-		cudaDeviceSynchronize();
-
-        int left = (int)thrust::count(col->coloring,col->coloring+n,-1);
-
+        gpuErrchk(cudaPeekAtLastError())
+		gpuErrchk(cudaDeviceSynchronize());
+        
+        int left = (int)thrust::count(col->coloring, col->coloring + n ,-1);
         if (left == 0) break;
 	}
-    
+
     return col;
 }

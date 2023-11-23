@@ -1,7 +1,14 @@
+#include <cuda.h>
+#include <iostream>
+#include <curand_kernel.h>
 #include "graph\graph.h"
 #include "graph\graph_d.h"
 #include "graph\coloring.h"
 #include "utils\common.h"
+#include <thrust/sequence.h>
+#include <thrust/shuffle.h>
+#include <thrust/random.h>
+#include <thrust/count.h>
 
 #define THREADxBLOCK 128
 
@@ -35,48 +42,31 @@ __global__ void colorer(Coloring * col, GraphStruct *str){
   	}
 }
 
-void FYshuffle(int * weights, uint n){
-    for(int i = 0; i < n; i++){
-        int swapIdx = (rand() % (n - i)) + i;
-        int tmp = weights[i];
-				weights[i] = weights[swapIdx];
-				weights[swapIdx] = tmp;
-    }
-}
-
-Coloring* graphColoring(GraphStruct *str){
+Coloring* graphColoring(GraphStruct *str) {
 	int n = str->nodeSize;
-	Coloring* col;
-	CHECK(cudaMallocManaged(&col, sizeof(Coloring)));
-	col->uncoloredNodes = true;
 
-    CHECK(cudaMallocManaged(&(col->coloring), n * sizeof(int)));
-	memset(col->coloring, -1 ,n * sizeof(int));
-	// allocate space on the GPU for the random states
+	Coloring* col;
+	gpuErrchk(cudaMallocManaged(&col, sizeof(Coloring)));
+
+    gpuErrchk(cudaMallocManaged(&(col->coloring), n * sizeof(int)));
+	thrust::fill(col->coloring, col->coloring + n, -1);
+
+    // Generazione pesi
+    thrust::sequence(str->weights, str->weights + n);
+    thrust::default_random_engine g;
+    thrust::shuffle(str->weights, str->weights + n, g);
 
 	dim3 threads ( THREADxBLOCK);
 	dim3 blocks ((str->nodeSize + threads.x - 1) / threads.x, 1, 1 );
 
-	for (int i = 0; i < n; i++){
-        str->weights[i] = i;
-    }
-    FYshuffle(str->weights, n);
-
-	bool flag = false;
 	for(int c = 0; c < n; c++){
 		col->numOfColors = c;
 		colorer<<<blocks, threads>>>(col, str);
-		cudaDeviceSynchronize();
-
-		for(int i=0; i<n; i++){
-				if(col->coloring[i] == -1){
-						flag = true;
-				}
-		}
-
-		if(!flag) break;
-		else flag = false;
-
+        gpuErrchk(cudaPeekAtLastError())
+		gpuErrchk(cudaDeviceSynchronize());
+        
+        int left = (int)thrust::count(col->coloring, col->coloring + n ,-1);
+        if (left == 0) break;
 	}
 
     return col;

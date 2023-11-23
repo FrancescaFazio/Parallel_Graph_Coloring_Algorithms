@@ -1,16 +1,17 @@
 #include <cuda.h>
 #include <curand_kernel.h>
 #include "graph.h"
-#include "/content/drive/MyDrive/graphcoloring/utils/common.h"
+#include "..\utils\common.h"
 
 struct Coloring {
-	bool		uncoloredNodes;
+	bool *		usedColors;		// maschera booleana dei colori usati dai vicini (per LDF e SDL)
 	uint		numOfColors;
-	int	*		coloring;   // each element denotes a color
+	int	*		coloring;   	
 };
 
 
 Coloring* graphColoring(GraphStruct*);
+void CPUcolorer(Coloring*, GraphStruct *);
 __global__ void init(uint, curandState_t*, uint*, uint);
 __global__ void print_d(GraphStruct*, bool);
 __global__ void colorer(Coloring*, GraphStruct *);

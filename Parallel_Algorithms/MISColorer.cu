@@ -1,7 +1,15 @@
+#include <cuda.h>
+#include <iostream>
+#include <curand_kernel.h>
+#include <cstdio>
 #include "graph\graph.h"
 #include "graph\graph_d.h"
 #include "graph\coloring.h"
 #include "utils\common.h"
+#include <thrust/sequence.h>
+#include <thrust/shuffle.h>
+#include <thrust/random.h>
+#include <thrust/count.h>
 
 #define THREADxBLOCK 128
 
@@ -43,62 +51,40 @@ __global__ void colorer(Coloring * col, GraphStruct *str){
 	}
 }
 
-void FYshuffle(int * weights, uint n){
-	for(int i = 0; i < n; i++){
-		int swapIdx = (rand() % (n - i)) + i;
-		int tmp = weights[i];
-		weights[i] = weights[swapIdx];
-		weights[swapIdx] = tmp;
-	}
-}
-
 Coloring* graphColoring(GraphStruct *str){
 	int n = str->nodeSize;
-	Coloring* col;
-	CHECK(cudaMallocManaged(&col, sizeof(Coloring)));
-	col->uncoloredNodes = true;
 
-	CHECK(cudaMallocManaged(&(col->coloring), n * sizeof(int)));
-	memset(col->coloring, -1 ,n * sizeof(int));
-	// allocate space on the GPU for the random states
+	Coloring* col;
+	gpuErrchk(cudaMallocManaged(&col, sizeof(Coloring)));
+
+    gpuErrchk(cudaMallocManaged(&(col->coloring), n * sizeof(int)));
+	thrust::fill(col->coloring, col->coloring + n, -1);
+
+    gpuErrchk(cudaMallocManaged(&(col->usedColors), n * n * sizeof(bool)));
+    thrust::fill(col->usedColors, col->usedColors + (n * n), false);
+
+    // Generazione pesi
+    thrust::sequence(str->weights, str->weights + n);
+    thrust::default_random_engine g;
+    thrust::shuffle(str->weights, str->weights + n, g);
 
 	dim3 threads ( THREADxBLOCK);
 	dim3 blocks ((str->nodeSize + threads.x - 1) / threads.x, 1, 1 );
 
-	for (int i = 0; i < n; i++){
-				str->weights[i] = i;
-		}
-
-	FYshuffle(str->weights, n);
-
-	for (int i = 0; i < n; i++){
-				printf("%d ", str->weights[i]);
-		}
-	printf("\n");
-
-	//print_d <<< 1, 1 >>> (str, true);
-
-	bool flag=true;
-	while(col->numOfColors<n){
-		while(flag){
+	for(int c = 0; c < n; c++){
+		col->numOfColors = c;
+		while(true){
 			colorer<<<blocks, threads>>>(col, str);
-			cudaDeviceSynchronize();
-			flag=false;
-			for(int i=0; i<n; i++){
-				if(col->coloring[i]==-1){
-						flag=true;
-				}
-			}
+        	gpuErrchk(cudaPeekAtLastError())
+			gpuErrchk(cudaDeviceSynchronize());
+        
+        	int left = (int)thrust::count(col->coloring, col->coloring + n ,-1);
+        	if (left == 0) break;
 		}
-		flag=false;
-		for(int i=0; i<n; i++){
-			if(col->coloring[i]==-2){
-					flag=true;
-					col->coloring[i]=-1;
-			}
-		}
-		if(!flag) break;
-		col->numOfColors++;
+
+		thrust::replace(col->coloring, col->coloring + n, -2, -1);
+		int left = (int)thrust::count(col->coloring, col->coloring + n ,-1);
+        if (left == 0) break;
 	}
 
 	return col;
