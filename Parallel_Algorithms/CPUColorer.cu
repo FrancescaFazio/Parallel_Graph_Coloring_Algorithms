@@ -11,7 +11,7 @@
 
 using namespace std;
 
-void CPUcolorer(Coloring * col, GraphStruct *str){
+void CPUcolorer(Coloring * col, GraphStruct *str, bool* usedColors){
 	int n = str->nodeSize;
 
     int * perm = (int *) malloc(n * sizeof(int));
@@ -24,14 +24,19 @@ void CPUcolorer(Coloring * col, GraphStruct *str){
 		uint offset = str->cumDegs[currentNode];
 		uint deg = str->deg(currentNode);
 
+        //thrust::fill(usedColors, usedColors + n, false);
+
         for (uint j = 0; j < deg; j++) {
 			uint neighID = str->neighs[offset + j];
 			int jColor = col->coloring[neighID];
-			if (jColor != -1) col->usedColors[jColor] = true;
+			if (jColor != -1 && jColor < deg) usedColors[offset + jColor] = true;
 		}
 
         for(uint c = 0; c < n; c++){
-            if(!col->usedColors[c]) col->coloring[currentNode] = c;
+            if(!usedColors[offset + c]){
+                col->coloring[currentNode] = c;
+                break;
+            }
         }
     }
 }
@@ -45,10 +50,24 @@ Coloring* graphColoring(GraphStruct *str){
     col->coloring = (int *) malloc(n * sizeof(int));
 	thrust::fill(col->coloring, col->coloring + n, -1);
 
-    col->usedColors = (bool * ) malloc(n * sizeof(bool));
-    thrust::fill(col->usedColors, col->usedColors + n, false);
+    bool * usedColors = (bool * ) malloc(str->edgeSize * sizeof(bool));
+    thrust::fill(usedColors, usedColors + str->edgeSize, false);
 
-    CPUcolorer(col, str);
+	cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+	cudaEventRecord(start);
 
+    CPUcolorer(col, str, usedColors);
+
+    cudaDeviceSynchronize();
+
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    printf("Tempo solo kernel %f ms\n", milliseconds);
+    
 	return col;
 }

@@ -40,32 +40,24 @@ void Graph::setup(node_sz nn) {
 */
 Graph::Graph(const char * filePath, bool GPUEnb){
 	GPUEnabled = GPUEnb;
-	int n = countLines(filePath);
+	int n = 4997962;
 	FILE * file = fopen(filePath, "r");
 	setup(n);
 
 	vector<int>* edges = new vector<int>[n];
-	char line[256];
-    char *token;
+	int i,j;
 
-	while (fgets(line, sizeof(line), file)) {
-        token = strtok(line, ";");
-		int currentNode = token[0] - '0';
-		printf("current Node %d ", currentNode);
-   
-        while( true ) {
-			token = strtok(NULL, ";");
-			printf("au");
-			if(token == NULL) break;
-
-			int currentNeighbour = token[0] - '0';
-            edges[currentNode].push_back(currentNeighbour);
-			str->cumDegs[currentNode + 1]++;
-			str->edgeSize += 1;
-        }
+	while (fscanf(file, "%d\t%d", &i, &j) == 2) {
+		//printf("%d %d\n", i,j);
+		edges[i].push_back(j);
+		edges[j].push_back(i);
+		str->cumDegs[i + 1]++;
+		str->cumDegs[j + 1]++;
+		str->edgeSize += 2;
     }
 
 	fclose(file);
+
 	for (int i = 0; i < n; i++)
 		str->cumDegs[i + 1] += str->cumDegs[i];
 

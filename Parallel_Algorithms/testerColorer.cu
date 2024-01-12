@@ -5,12 +5,10 @@
 
 #define THREADxBLOCK 128
 
-// da fare: aggiungere stream? ad esempio per eseguire in modo concorrente stampa del grafo e la sua colorazione
-
 int main(void) {
-    unsigned int n = 5000;		 // number of nodes for random graphs
-    float prob = 1;				    // density (percentage) for random graphs
-    std::default_random_engine eng{0};  // fixed seed
+    //unsigned int n = 50515;		
+    //float prob = 0;				    
+    //std::default_random_engine eng{0}; 
 
     srand(time(0));
     cudaEvent_t start, stop;
@@ -18,16 +16,12 @@ int main(void) {
     cudaEventCreate(&stop);
 
     // new graph with n nodes
-    Graph graph(n, 1);
-
-    // generate a random graph
-    graph.randGraph(prob, eng);
+    Graph graph("facebook_clean_data/com-amazon.ungraph.txt", 1);
+    //Graph graph(n, 1);
+    //graph.randGraph(prob, eng);
 
     // get the graph struct
     GraphStruct *str = graph.getStruct();
-
-    //print_d <<< 1, 1 >>> (str, true);
-    cudaDeviceSynchronize();
 
     cudaEventRecord(start);
 
@@ -43,10 +37,9 @@ int main(void) {
     printf("%f ms\n", milliseconds);
 
     int maxColor = 0;
-    printf("Coloratura trovata: ");
     for(int i = 0; i < str->nodeSize; i++){
         if(maxColor < col->coloring[i]) maxColor = col->coloring[i];
-        printf("%d ", col->coloring[i]);
+        //printf("%d ", col->coloring[i]);
     }
     printf("\nColore massimo: %d", maxColor+1);
     //printColoring(col, str, 1);
