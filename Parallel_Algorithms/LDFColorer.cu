@@ -43,10 +43,6 @@ __global__ void findCandidates (Coloring* col, GraphStruct *str, bool * currentI
 			// ignora i vicini già colorati (e te stesso)
 			int jColor = col->coloring[neighID];
 
-            if(jColor != -1 && jColor < deg){
-                usedColors[offset + jColor] = true;
-                continue;
-            }
             if(jColor != -1 || i == neighID) continue;
             
 			int jWeight = str->weights[neighID];
@@ -58,7 +54,9 @@ __global__ void findCandidates (Coloring* col, GraphStruct *str, bool * currentI
 		}
            
 		// colora solo se sei il nodo di peso massimo
-		if (flag) currentIS[i] = true;
+		if (flag){
+			currentIS[i] = true;
+		}
     }
 }
 
@@ -69,14 +67,25 @@ __global__ void colorer(Coloring * col, GraphStruct *str, bool * currentIS, bool
     if (i >= n) return;
 
     if (currentIS[i] == 1 && col->coloring[i] == -1){
-        int color = 1;
         uint offset = str->cumDegs[i];
+		int deg = str->cumDegs[i + 1] - str->cumDegs[i];
+        uint neighID; int jColor; bool flag = true; int c = 0;
 
-        // Cerca il primo colore libero per questo nodo
-        while (usedColors[offset + color]) color++;
-        
-        // Assegna il primo colore libero al nodo corrente
-        col->coloring[i] = color;
+        while(flag){
+            flag = false;
+            for (uint j = 0; j < deg; j++) {
+                neighID = str->neighs[offset + j];
+                jColor = col->coloring[neighID];
+
+                if (jColor == c){
+                    flag = true;
+                    c++;
+                    break;
+                }
+            }
+        }
+
+        col->coloring[i] = c;
     }else if(currentIS[i] == 0 && col->coloring[i] == -1){
         col->uncoloredNodes = true;
     }
@@ -85,7 +94,7 @@ __global__ void colorer(Coloring * col, GraphStruct *str, bool * currentIS, bool
 Coloring* graphColoring(GraphStruct *str) {
 	int n = str->nodeSize;
     bool * currentIS;
-	printf("%d ",n);
+	printf("%d\n",n);
 
 	// Creazione coloratura CPU e GPU
 	Coloring * col_h;
@@ -112,14 +121,14 @@ Coloring* graphColoring(GraphStruct *str) {
 	gpuErrchk(cudaMalloc((void **) &col_d, sizeof(Coloring)));
 	gpuErrchk(cudaMalloc((void **) &coloring_d, n * sizeof(int)));
     gpuErrchk(cudaMalloc((void **) &currentIS, n * sizeof(bool)));
-    gpuErrchk(cudaMalloc((void **) &usedColors_d, str->edgeSize * sizeof(bool)));
+    gpuErrchk(cudaMalloc((void **) &usedColors_d, (str->edgeSize + n) * sizeof(bool)));
 
 	gpuErrchk(cudaMemcpy(coloring_d, col_h->coloring, n * sizeof(int), cudaMemcpyHostToDevice));
 	gpuErrchk(cudaMemcpy(&(col_d->coloring), &coloring_d, sizeof(col_d->coloring), cudaMemcpyHostToDevice));
 	gpuErrchk(cudaMemset(&(col_d->numOfColors), 0, sizeof(uint)));
 	gpuErrchk(cudaMemset(&(col_d->uncoloredNodes), false, sizeof(bool)));
     gpuErrchk(cudaMemset(currentIS, false, n * sizeof(bool)));
-	gpuErrchk(cudaMemset(usedColors_d, false, str->edgeSize * sizeof(bool)));
+	gpuErrchk(cudaMemset(usedColors_d, false, (str->edgeSize) * sizeof(bool)));
 
 	dim3 threads (THREADxBLOCK);
 	dim3 blocks ((str->nodeSize + threads.x - 1) / threads.x, 1, 1 );
@@ -147,6 +156,7 @@ Coloring* graphColoring(GraphStruct *str) {
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
+		
 		// Aggiorno uncoloredNodes lato CPU e resetto currentIS
 		gpuErrchk(cudaMemcpy(&(col_h->uncoloredNodes), &(col_d->uncoloredNodes), sizeof(bool), cudaMemcpyDeviceToHost));
         //gpuErrchk(cudaMemset(currentIS, false, n * sizeof(bool)));

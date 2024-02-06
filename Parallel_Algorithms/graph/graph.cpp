@@ -40,21 +40,25 @@ void Graph::setup(node_sz nn) {
 */
 Graph::Graph(const char * filePath, bool GPUEnb){
 	GPUEnabled = GPUEnb;
-	int n = 4997962;
+	int n = 4597962;
 	FILE * file = fopen(filePath, "r");
 	setup(n);
 
 	vector<int>* edges = new vector<int>[n];
-	int i,j;
+	int i,j; int max = 0;
 
 	while (fscanf(file, "%d\t%d", &i, &j) == 2) {
 		//printf("%d %d\n", i,j);
+		if (i > max) max = i;
+		if (j > max) max = j;
 		edges[i].push_back(j);
 		edges[j].push_back(i);
 		str->cumDegs[i + 1]++;
 		str->cumDegs[j + 1]++;
 		str->edgeSize += 2;
     }
+
+	printf("MAX n: %d ", max);
 
 	fclose(file);
 

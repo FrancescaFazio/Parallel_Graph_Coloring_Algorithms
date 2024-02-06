@@ -6,9 +6,9 @@
 #define THREADxBLOCK 128
 
 int main(void) {
-    //unsigned int n = 50515;		
-    //float prob = 0;				    
-    //std::default_random_engine eng{0}; 
+    //unsigned int n = 50000;		
+    //float prob = 0.0001;				    
+    //sstd::default_random_engine eng{0}; 
 
     srand(time(0));
     cudaEvent_t start, stop;
@@ -16,7 +16,7 @@ int main(void) {
     cudaEventCreate(&stop);
 
     // new graph with n nodes
-    Graph graph("facebook_clean_data/com-amazon.ungraph.txt", 1);
+    Graph graph("facebook_clean_data/com-orkut.ungraph.txt", 1);
     //Graph graph(n, 1);
     //graph.randGraph(prob, eng);
 
@@ -36,12 +36,15 @@ int main(void) {
     cudaEventElapsedTime(&milliseconds, start, stop);
     printf("%f ms\n", milliseconds);
 
+    //print_d<<<1,1>>>(str, 1);
+    cudaDeviceSynchronize();
+
     int maxColor = 0;
     for(int i = 0; i < str->nodeSize; i++){
         if(maxColor < col->coloring[i]) maxColor = col->coloring[i];
         //printf("%d ", col->coloring[i]);
     }
-    printf("\nColore massimo: %d", maxColor+1);
+    printf("\nColore massimo: %d", maxColor);
     //printColoring(col, str, 1);
 
     return EXIT_SUCCESS;

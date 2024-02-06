@@ -15,6 +15,13 @@
 
 using namespace std;
 
+__global__ void warm_up_gpu(){
+	unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	float ia, ib;
+	ia = ib = 0.0f;
+	ib += ia + tid; 
+}
+
 __global__ void findIS(Coloring * col, GraphStruct *str, bool * unvisitedNodes, int * currentMIS){
 	int n = str->nodeSize;
 
@@ -109,6 +116,8 @@ Coloring* graphColoring(GraphStruct *str){
 
 	dim3 threads (THREADxBLOCK);
 	dim3 blocks ((str->nodeSize + threads.x - 1) / threads.x, 1, 1 );
+
+    warm_up_gpu<<<blocks, threads>>>();
 
 	cudaEvent_t start, stop;
     cudaEventCreate(&start);

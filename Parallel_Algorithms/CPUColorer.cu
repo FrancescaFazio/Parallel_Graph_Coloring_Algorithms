@@ -32,12 +32,14 @@ void CPUcolorer(Coloring * col, GraphStruct *str, bool* usedColors){
 			if (jColor != -1 && jColor < deg) usedColors[offset + jColor] = true;
 		}
 
-        for(uint c = 0; c < n; c++){
+        for(uint c = 0; c < deg; c++){
             if(!usedColors[offset + c]){
                 col->coloring[currentNode] = c;
                 break;
             }
         }
+        
+        if(col->coloring[currentNode] == -1) col->coloring[currentNode] = deg;
     }
 }
 
