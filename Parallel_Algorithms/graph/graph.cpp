@@ -40,7 +40,7 @@ void Graph::setup(node_sz nn) {
 */
 Graph::Graph(const char * filePath, bool GPUEnb){
 	GPUEnabled = GPUEnb;
-	int n = 4597962;
+	int n = 550000;
 	FILE * file = fopen(filePath, "r");
 	setup(n);
 

@@ -28,7 +28,7 @@ __global__ void findCandidates(Coloring * col, GraphStruct * str, bool * current
 
     if (i > n) return; 
 
-    bool flag = true; // vera sse il nodo ha peso locale massimo
+    bool flag = true; 
 
     // ignora i nodi già colorati
     if ((col->coloring[i] != -1)) return;
@@ -41,10 +41,7 @@ __global__ void findCandidates(Coloring * col, GraphStruct * str, bool * current
     
     for (uint j = 0; j < deg; j++) {
         neighID = str->neighs[offset + j];
-        // ignora i vicini già colorati (e te stesso)
         jColor = col->coloring[neighID];
-
-        //if ((jColor != -1) && (jColor < deg)) usedColors[offset + jColor] = true;
 
         jWeight = str->weights[neighID];
         if (!((jColor != -1)  || (i == neighID)) && iWeight <= jWeight) flag = false;
@@ -52,7 +49,6 @@ __global__ void findCandidates(Coloring * col, GraphStruct * str, bool * current
 
     // colora solo se sei il nodo di peso massimo
     if (flag) currentIS[i] = true;
-    // else col->uncoloredNodes = true;
     
 }
 
@@ -144,16 +140,15 @@ Coloring* graphColoring(GraphStruct *str) {
 		gpuErrchk(cudaMemcpy(&(col_d->numOfColors), &(col_h->numOfColors), sizeof(uint), cudaMemcpyHostToDevice));
 
 		findCandidates<<<blocks, threads>>>(col_d, str, currentIS, usedColors_d);
-        //gpuErrchk(cudaPeekAtLastError());
-        //gpuErrchk(cudaDeviceSynchronize());
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 
         colorer<<<blocks, threads>>>(col_d, str, currentIS, usedColors_d);
-        //gpuErrchk(cudaPeekAtLastError());
-        //gpuErrchk(cudaDeviceSynchronize());
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
         
 		// Aggiorno uncoloredNodes lato CPU
 		gpuErrchk(cudaMemcpy(&(col_h->uncoloredNodes), &(col_d->uncoloredNodes), sizeof(bool), cudaMemcpyDeviceToHost));
-        //gpuErrchk(cudaMemset(currentIS, false, n * sizeof(bool)));
 	}
 
     cudaDeviceSynchronize();
