@@ -5,7 +5,12 @@
 
 #define THREADxBLOCK 128
 
-int main(void) {
+int main(int argc,  char **argv) {
+    unsigned int n;
+    sscanf (argv[1],"%d",&n);
+    char * fpath = argv[2];
+    for (int i = 0; i < argc; ++i)
+
     //unsigned int n = 50000;		
     //float prob = 0.0001;				    
     //sstd::default_random_engine eng{0}; 
@@ -15,7 +20,7 @@ int main(void) {
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
-    Graph graph("facebook_clean_data/com-amazon.ungraph.txt", 1);
+    Graph graph(fpath, n, 1);
     //Graph graph(n, 1);
     //graph.randGraph(prob, eng);
 
