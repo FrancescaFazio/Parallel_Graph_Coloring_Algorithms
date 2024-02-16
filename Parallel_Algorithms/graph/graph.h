@@ -47,7 +47,7 @@ class Graph {
 
 public:
 	Graph(node_sz nn, bool GPUEnb) : GPUEnabled{GPUEnb} {setup(nn);}
-	Graph(const char *, bool);
+	Graph(const char *, node_sz nn, bool);
 	void setup(node_sz);	                             // CPU/GPU mem setup
 	void randGraph(float, std::default_random_engine&);  // generate an Erdos random graph
 	void print(bool);

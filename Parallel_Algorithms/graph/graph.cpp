@@ -38,9 +38,8 @@ void Graph::setup(node_sz nn) {
 /**
  * Crea un grafo leggendo da file .csv in formato lista d'adiacenza.
 */
-Graph::Graph(const char * filePath, bool GPUEnb){
+Graph::Graph(const char * filePath, node_sz n, bool GPUEnb){
 	GPUEnabled = GPUEnb;
-	int n = 550000;
 	FILE * file = fopen(filePath, "r");
 	setup(n);
 
