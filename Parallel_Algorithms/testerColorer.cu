@@ -9,7 +9,6 @@ int main(int argc,  char **argv) {
     unsigned int n;
     sscanf (argv[1],"%d",&n);
     char * fpath = argv[2];
-    for (int i = 0; i < argc; ++i)
 
     //unsigned int n = 50000;		
     //float prob = 0.0001;				    
